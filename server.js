@@ -4,36 +4,40 @@ const multer = require("multer");
 const XLSX = require("xlsx");
 const mongoose = require("mongoose");
 const path = require("path");
-const fs = require("fs");
 
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 /* ===== MongoDB ===== */
-mongoose
-  .connect(process.env.MONGO_URI)
-  .then(() => console.log("✅ MongoDB Connected"))
-  .catch((err) => {
-    console.error("❌ MongoDB connection failed:", err.message);
-    process.exit(1);
-  });
+mongoose.connect(
+  process.env.MONGO_URI,
+  {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+  }
+);
 
 /* ===== MODELS ===== */
+
+// Attendance
 const attendanceSchema = new mongoose.Schema({
   admNo: String,
   name: String,
   preference: String,
   date: String,
 });
+
 const Attendance = mongoose.model("Attendance", attendanceSchema);
 
+// Student
 const studentSchema = new mongoose.Schema({
-  admNo: { type: String, unique: true },
+  admNo: String,
   name: String,
   email: String,
   preference: String,
 });
+
 const Student = mongoose.model("Student", studentSchema);
 
 /* ===== File Upload ===== */
@@ -48,74 +52,54 @@ app.get("/scan", (req, res) => {
   res.sendFile(path.join(__dirname, "views/scan.html"));
 });
 
+/* ===================================================== */
 /* ===== Upload Excel → Store Students ===== */
-app.post("/upload", upload.single("file"), async (req, res) => {
-  if (!req.file) {
-    return res.status(400).send("No file uploaded ❌");
-  }
+/* ===================================================== */
 
+app.post("/upload", upload.single("file"), async (req, res) => {
   try {
     const workbook = XLSX.readFile(req.file.path);
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
     const data = XLSX.utils.sheet_to_json(sheet);
 
-    if (!data.length) {
-      return res.status(400).send("Excel file is empty ❌");
-    }
-
     for (let row of data) {
-      if (!row["Admission No"]) continue;
-
-      const admNo = String(row["Admission No"]).trim().toLowerCase();
-
+      const admNo = row["Admission No"].toLowerCase();
+      // const admNo = rawAdmNo.toString().toLowerCase();
       await Student.findOneAndUpdate(
         { admNo },
         {
           admNo,
-          name: row["Name"] || "",
-          email: row["Email"] || "",
-          preference: row["Preferences"] || row["Preference"] || "",
+          name: row["Name"],
+          email: row["Email"],
+          preference: row["Preferences"] || row["Preference"],
         },
-        { upsert: true, new: true }
+        { upsert: true }
       );
     }
 
-    res.send(`✅ ${data.length} students uploaded successfully!`);
+    res.send("Students Uploaded Successfully ✅");
   } catch (err) {
-    console.error("Upload error:", err);
-    res.status(500).send("Error processing file ❌");
-  } finally {
-    // Clean up temp file
-    if (req.file?.path) {
-      fs.unlink(req.file.path, () => {});
-    }
+    console.error(err);
+    res.status(500).send("Upload error");
   }
 });
+/* ===================================================== */
+/* ===== Attendance Marking (WITH VALIDATION) ===== */
+/* ===================================================== */
 
-/* ===== Attendance Marking ===== */
 app.post("/attendance", async (req, res) => {
   try {
-    const rawAdmNo = req.body?.admNo;
-
-    if (!rawAdmNo || typeof rawAdmNo !== "string") {
-      return res.status(400).json({ message: "Invalid input ❌" });
-    }
-
-    // Normalize: lowercase, trim, alphanumeric only
-    const admNo = rawAdmNo.trim().toLowerCase().replace(/[^a-z0-9]/g, "");
-
-    if (!admNo) {
-      return res.status(400).json({ message: "Invalid Admission No ❌" });
-    }
-
+    const { admNo } = req.body;
     const today = new Date().toISOString().split("T")[0];
 
     const student = await Student.findOne({ admNo });
+
     if (!student) {
-      return res.json({ message: "Invalid QR - Student not found ❌" });
+      return res.json({ message: "Invalid QR ❌" });
     }
 
     const exists = await Attendance.findOne({ admNo, date: today });
+
     if (exists) {
       return res.json({ message: `Already Marked ❌ (${student.name})` });
     }
@@ -130,97 +114,92 @@ app.post("/attendance", async (req, res) => {
     res.json({
       message: `Marked ✅ (${student.name} - ${student.preference})`,
     });
+
   } catch (err) {
-    console.error("Attendance error:", err);
-    res.status(500).json({ message: "Server error ❌" });
+    res.status(500).send("Error");
   }
 });
 
-/* ===== Attendance Table Page ===== */
+/* ===================================================== */
+/* ===== Attendance Page (Table View) ===== */
+/* ===================================================== */
+
 app.get("/attendance", async (req, res) => {
   try {
-    const data = await Attendance.find().sort({ date: -1 });
+    const data = await Attendance.find();
 
-    const rows = data
-      .map(
-        (item, i) => `
+    let rows = "";
+
+    for (let i = 0; i < data.length; i++) {
+      rows += `
         <tr>
           <td>${i + 1}</td>
-          <td>${item.admNo}</td>
-          <td>${item.name}</td>
-          <td>${item.preference}</td>
-          <td>${item.date}</td>
-        </tr>`
-      )
-      .join("");
+          <td>${data[i].admNo}</td>
+          <td>${data[i].name}</td>
+          <td>${data[i].preference}</td>
+          <td>${data[i].date}</td>
+        </tr>
+      `;
+    }
 
     res.send(`
-      <!DOCTYPE html>
       <html>
       <head>
         <title>Attendance</title>
         <style>
-          body { font-family: Arial; text-align:center; background:#f4f6f9; }
-          table { border-collapse:collapse; margin:auto; width:80%; background:white; border-radius:8px; overflow:hidden; }
-          th, td { border:1px solid #ddd; padding:12px; }
-          th { background:#1abc9c; color:white; }
-          tr:nth-child(even) { background:#f9f9f9; }
+          body { font-family: Arial; text-align:center; }
+          table { border-collapse: collapse; margin:auto; width:80%; }
+          th, td { border:1px solid black; padding:10px; }
+          th { background:#4CAF50; color:white; }
         </style>
       </head>
       <body>
-        <h2>📋 Attendance List</h2>
+        <h2>Attendance List</h2>
         <table>
-          <tr><th>#</th><th>Admission No</th><th>Name</th><th>Preference</th><th>Date</th></tr>
-          ${rows || "<tr><td colspan='5'>No records found</td></tr>"}
+          <tr>
+            <th>#</th>
+            <th>Admission No</th>
+            <th>Name</th>
+            <th>Preference</th>
+            <th>Date</th>
+          </tr>
+          ${rows}
         </table>
       </body>
       </html>
     `);
   } catch (err) {
-    res.status(500).send("Error loading attendance ❌");
+    res.status(500).send("Error loading attendance");
   }
 });
 
+/* ===================================================== */
 /* ===== API: Attendance JSON ===== */
+/* ===================================================== */
+
 app.get("/attendance-list", async (req, res) => {
-  try {
-    const data = await Attendance.find().sort({ date: -1 });
-    res.json(data);
-  } catch (err) {
-    res.status(500).json({ error: "Error fetching attendance" });
-  }
+  const data = await Attendance.find();
+  res.json(data);
 });
 
+/* ===================================================== */
 /* ===== Delete Attendance ===== */
+/* ===================================================== */
+
 app.delete("/delete-attendance/:id", async (req, res) => {
   try {
-    const { id } = req.params;
-
-    // Basic ObjectId validation
-    if (!id.match(/^[0-9a-fA-F]{24}$/)) {
-      return res.status(400).json({ message: "Invalid ID ❌" });
-    }
-
-    const result = await Attendance.findByIdAndDelete(id);
-
-    if (!result) {
-      return res.status(404).json({ message: "Record not found ❌" });
-    }
-
+    await Attendance.findByIdAndDelete(req.params.id);
     res.json({ message: "Deleted Successfully ✅" });
   } catch (err) {
-    console.error("Delete error:", err);
-    res.status(500).json({ message: "Error deleting ❌" });
+    res.status(500).send("Error deleting");
   }
 });
 
-/* ===== 404 Handler ===== */
-app.use((req, res) => {
-  res.status(404).send("Page not found ❌");
-});
-
+/* ===================================================== */
 /* ===== Start Server ===== */
+/* ===================================================== */
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, "0.0.0.0", () => {
-  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });
