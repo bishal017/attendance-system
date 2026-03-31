@@ -1,402 +1,320 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Attendance System</title>
-  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600&display=swap" rel="stylesheet"/>
+  <script src="https://unpkg.com/html5-qrcode"></script>
 
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
     body {
-      font-family: 'DM Sans', sans-serif;
+      font-family: Arial;
+      margin: 0;
       background: #f4f6f9;
-      min-height: 100vh;
     }
 
-    /* HEADER */
-    .header {
-      background: linear-gradient(135deg, #0f2027, #2c5364);
-      color: white;
+    h2 {
       text-align: center;
-      padding: 20px;
-      font-size: 20px;
-      font-weight: 600;
-      letter-spacing: 0.5px;
+    }
+    /* for flush */
+    .flash-success {
+      background-color: #d4edda !important;
+      transition: 0.3s;
+    } 
+
+    .flash-error {
+      background-color: #f8d7da !important;
+      transition: 0.3s;
     }
 
-    /* TABS */
     .tabs {
       display: flex;
       justify-content: center;
-      background: #1a2f3a;
+      background: #2c3e50;
     }
 
     .tab {
-      padding: 14px 30px;
-      color: #aaa;
+      padding: 15px 25px;
+      color: white;
       cursor: pointer;
-      font-size: 14px;
-      font-weight: 600;
-      border-bottom: 3px solid transparent;
-      transition: color 0.2s, border-color 0.2s;
     }
 
-    .tab:hover { color: white; }
-    .tab.active { color: #1abc9c; border-bottom-color: #1abc9c; }
-
-    /* CONTENT */
-    .content { display: none; padding: 30px 20px; }
-    .content.show { display: block; }
-
-    /* SCANNER */
-    .scan-wrapper {
-      max-width: 480px;
-      margin: auto;
+    .tab:hover {
+      background: #34495e;
     }
 
-    .section-title {
-      font-size: 16px;
-      font-weight: 600;
-      color: #2c3e50;
-      margin-bottom: 16px;
+    .active {
+      background: #1abc9c;
+    }
+
+    .content {
+      display: none;
+      padding: 20px;
       text-align: center;
+    }
+
+    .show {
+      display: block;
     }
 
     #reader {
-      border-radius: 12px;
-      overflow: hidden;
       margin: auto;
-      max-width: 320px;
+      width: 320px;
     }
 
-    .divider {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin: 24px 0;
-      color: #ccc;
-      font-size: 12px;
-    }
-    .divider::before, .divider::after {
-      content: '';
-      flex: 1;
-      height: 1px;
-      background: #ddd;
+    input {
+      padding: 10px;
+      width: 200px;
+      margin: 10px;
     }
 
-    .manual-area {
-      display: flex;
-      gap: 10px;
-      justify-content: center;
-    }
-
-    .manual-area input {
-      padding: 12px 16px;
-      border: 2px solid #ddd;
-      border-radius: 8px;
-      font-size: 14px;
-      font-family: inherit;
-      flex: 1;
-      max-width: 220px;
-      outline: none;
-      transition: border-color 0.2s;
-    }
-
-    .manual-area input:focus { border-color: #1abc9c; }
-
-    .btn {
-      padding: 12px 20px;
+    button {
+      padding: 10px 20px;
       background: #1abc9c;
       border: none;
       color: white;
-      font-size: 14px;
-      font-weight: 600;
       cursor: pointer;
-      border-radius: 8px;
-      font-family: inherit;
-      transition: background 0.2s, transform 0.1s;
-    }
-    .btn:hover { background: #16a085; transform: translateY(-1px); }
-    .btn:active { transform: translateY(0); }
-
-    /* RESULT BOX */
-    #resultBox {
-      margin-top: 20px;
-      padding: 12px 20px;
-      border-radius: 10px;
-      font-weight: 600;
-      font-size: 15px;
-      text-align: center;
-      min-height: 48px;
-      transition: background 0.3s, color 0.3s;
+      border-radius: 5px;
     }
 
-    #resultBox.success { background: #d4edda; color: #155724; }
-    #resultBox.error   { background: #f8d7da; color: #721c24; }
-    #resultBox.loading { background: #fff3cd; color: #856404; }
-
-    /* ATTENDANCE TABLE */
-    .att-wrapper {
-      max-width: 900px;
-      margin: auto;
-    }
-
-    .att-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 16px;
-      flex-wrap: wrap;
-      gap: 10px;
-    }
-
-    .att-header h3 { font-size: 18px; color: #2c3e50; }
-
-    #countBox {
-      background: #1abc9c;
-      color: white;
-      padding: 6px 14px;
-      border-radius: 20px;
-      font-size: 13px;
-      font-weight: 600;
-    }
-
-    .table-wrap {
-      background: white;
-      border-radius: 12px;
-      overflow: hidden;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-      overflow-x: auto;
+    button:hover {
+      background: #16a085;
     }
 
     table {
+      margin: auto;
       border-collapse: collapse;
-      width: 100%;
+      width: 70%;
     }
 
     th, td {
-      padding: 12px 16px;
-      text-align: left;
-      font-size: 14px;
+      border: 1px solid #ccc;
+      padding: 10px;
     }
 
     th {
-      background: #2c5364;
+      background: #1abc9c;
       color: white;
-      font-weight: 600;
     }
 
-    tr:nth-child(even) { background: #f9f9f9; }
-    tr:hover { background: #f0fdf9; }
+    #resultBox {
+      margin-top: 15px;
+      font-weight: bold;
+    }
 
-    .delete-btn {
-      background: none;
+    hr {
       border: none;
-      cursor: pointer;
-      font-size: 16px;
-      padding: 4px 8px;
-      border-radius: 6px;
-      transition: background 0.2s;
-    }
-    .delete-btn:hover { background: #f8d7da; }
-
-    .empty-msg {
-      text-align: center;
-      padding: 30px;
-      color: #aaa;
-      font-size: 14px;
+      height: 1px;
+      background: #ccc;
+      margin: 20px;
     }
   </style>
 </head>
 
 <body>
+<audio id="beepSound" src="https://www.soundjay.com/buttons/sounds/beep-01a.mp3"></audio>
 
-<div class="header">📋 Attendance System</div>
+<h2>📋 Attendance System</h2>
 
 <div class="tabs">
-  <div class="tab active" onclick="openTab('scan', event)">📷 Scan + Manual</div>
-  <div class="tab" onclick="openTab('attendance', event)">📊 Attendance</div>
+  <div class="tab active" onclick="openTab('scan')">📷 Scan + Manual</div>
+  <div class="tab" onclick="openTab('attendance')">📊 Attendance</div>
 </div>
 
-<!-- SCAN + MANUAL TAB -->
+<!-- SCAN + MANUAL -->
 <div id="scan" class="content show">
-  <div class="scan-wrapper">
-    <p class="section-title">Scan QR Code</p>
-    <div id="reader"></div>
+  <h3>Scan QR Code</h3>
+  <div id="reader"></div>
 
-    <div class="divider">or enter manually</div>
+  <hr>
 
-    <div class="manual-area">
-      <input id="manualInput" type="text" placeholder="Enter Admission No" />
-      <button class="btn" onclick="manualSubmit()">Submit</button>
-    </div>
+  <h3>Or Enter Manually</h3>
+  <input id="manualInput" placeholder="Enter Admission No">
+  <br>
+  <button onclick="manualSubmit()">Submit</button>
 
-    <div id="resultBox"></div>
-  </div>
+  <div id="resultBox"></div>
 </div>
 
-<!-- ATTENDANCE TAB -->
+<!-- ATTENDANCE -->
 <div id="attendance" class="content">
-  <div class="att-wrapper">
-    <div class="att-header">
-      <h3>Attendance List</h3>
-      <div style="display:flex; gap:10px; align-items:center;">
-        <span id="countBox">Total: 0</span>
-        <button class="btn" onclick="loadAttendance()">🔄 Refresh</button>
-      </div>
-    </div>
-
-    <div class="table-wrap">
-      <table id="attTable">
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>Admission No</th>
-            <th>Name</th>
-            <th>Preference</th>
-            <th>Date</th>
-            <th>Action</th>
-          </tr>
-        </thead>
-        <tbody id="attBody">
-          <tr><td colspan="6" class="empty-msg">Click Refresh to load data</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
+  <h3>Attendance List</h3>
+  <h4 id="countBox">Total Present: 0</h4>
+  <button onclick="loadAttendance()">Refresh</button>
+  <br><br>
+  <table id="attTable">
+    <tr>
+      <th>#</th>
+      <th>Admission No</th>
+      <th>Name</th>
+      <th>Preference</th>
+      <th>Date</th>
+      <th>Action</th>
+    </tr>
+  </table>
 </div>
 
 <script>
-/* ===== TAB SWITCH ===== */
-function openTab(tabName, event) {
+
+/* TAB SWITCH */
+function openTab(tabName) {
   document.querySelectorAll(".content").forEach(c => c.classList.remove("show"));
   document.getElementById(tabName).classList.add("show");
 
   document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
   event.target.classList.add("active");
 
-  if (tabName === "attendance") loadAttendance();
+  // 🔥 AUTO LOAD
+  if (tabName === "attendance") {
+    loadAttendance();
+  }
 }
 
-/* ===== QR SCANNER ===== */
+/* SCANNER */
 let lastScan = "";
 
-const scanner = new Html5QrcodeScanner("reader", {
-  fps: 15,
-  qrbox: { width: 250, height: 250 },
-});
-
-scanner.render((decodedText) => {
+function onScanSuccess(decodedText) {
   const admNo = decodedText.trim().toLowerCase();
+
   if (admNo === lastScan) return;
 
   lastScan = admNo;
+
   sendAttendance(admNo);
 
-  setTimeout(() => { lastScan = ""; }, 2000);
+  setTimeout(() => {
+    lastScan = "";
+  }, 2000);
+}
+
+const scanner = new Html5QrcodeScanner("reader", {
+  fps: 15,
+  qrbox: { width: 250, height: 250 }
 });
 
-/* ===== MANUAL SUBMIT ===== */
+scanner.render(onScanSuccess);
+
+/* MANUAL */
 function manualSubmit() {
   const input = document.getElementById("manualInput").value.trim().toLowerCase();
 
   if (!input) {
-    showResult("Please enter an Admission No ❌", "error");
+    showResult("Enter Admission No ❌", false);
     return;
   }
 
   sendAttendance(input);
 }
 
-/* ===== SEND ATTENDANCE ===== */
+/* SEND ATTENDANCE */
 async function sendAttendance(admNo) {
-  showResult("Processing... ⏳", "loading");
 
-  try {
-    const res = await fetch("/attendance", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ admNo }),
-    });
+  showResult("Processing... ⏳", null);
 
-    const data = await res.json();
+  const res = await fetch("/attendance", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({ admNo })
+  });
 
-    if (data.message.includes("✅")) {
-      showResult(data.message, "success");
-      if (navigator.vibrate) navigator.vibrate(200);
-    } else {
-      showResult(data.message, "error");
-    }
+  const data = await res.json();
 
-    loadAttendance();
-  } catch (err) {
-    showResult("Network error ❌", "error");
+  if (data.message.includes("✅")) {
+    showResult(data.message, true);
+  } else {
+    showResult(data.message, false);
   }
 
+  // 🔥 AUTO REFRESH ATTENDANCE TABLE
+  loadAttendance();
+
+  // clear manual input
   document.getElementById("manualInput").value = "";
 }
 
-/* ===== SHOW RESULT ===== */
-function showResult(msg, type) {
+/* RESULT DISPLAY */
+function showResult(msg, success) {
   const box = document.getElementById("resultBox");
-  box.textContent = msg;
-  box.className = type || "";
+
+  box.innerText = msg;
+
+  // RESET COLORS
+  document.body.classList.remove("flash-success", "flash-error");
+
+  if (success === true) {
+    box.style.color = "green";
+
+    // 🔊 Beep
+    // document.getElementById("beepSound").play();
+    
+
+    // 📱 Vibrate
+    if (navigator.vibrate) navigator.vibrate(200);
+
+    // 🟢 Flash
+    document.body.classList.add("flash-success");
+
+  } else if (success === false) {
+    box.style.color = "red";
+
+    // 🔴 Flash
+    document.body.classList.add("flash-error");
+
+  } else {
+    box.style.color = "black";
+  }
+
+  // remove flash after 1 sec
+  setTimeout(() => {
+    document.body.classList.remove("flash-success", "flash-error");
+  }, 1000);
 }
 
-/* ===== LOAD ATTENDANCE ===== */
+/* LOAD ATTENDANCE */
 async function loadAttendance() {
-  try {
-    const res = await fetch("/attendance-list");
-    const data = await res.json();
+  const res = await fetch("/attendance-list");
+  const data = await res.json();
 
-    document.getElementById("countBox").textContent = `Total Present: ${data.length}`;
+  const table = document.getElementById("attTable");
+  document.getElementById("countBox").innerText =
+  "Total Present: " + data.length;
+  table.innerHTML = `
+    <tr>
+      <th>#</th>
+      <th>Admission No</th>
+      <th>Name</th>
+      <th>Preference</th>
+      <th>Date</th>
+      <th>Action</th>
+    </tr>
+  `;
 
-    const tbody = document.getElementById("attBody");
-
-    if (!data.length) {
-      tbody.innerHTML = `<tr><td colspan="6" class="empty-msg">No attendance records yet</td></tr>`;
-      return;
-    }
-
-    // Build HTML string first, then set once (avoids repeated DOM re-parsing)
-    let rows = "";
-    data.forEach((item, index) => {
-      rows += `
-        <tr>
-          <td>${index + 1}</td>
-          <td>${item.admNo}</td>
-          <td>${item.name || "-"}</td>
-          <td>${item.preference || "-"}</td>
-          <td>${item.date}</td>
-          <td>
-            <button class="delete-btn" onclick="deleteAttendance('${item._id}')">❌</button>
-          </td>
-        </tr>`;
-    });
-
-    tbody.innerHTML = rows;
-  } catch (err) {
-    console.error("Error loading attendance:", err);
-  }
+  data.forEach((item, index) => {
+    table.innerHTML += `
+      <tr>
+        <td>${index + 1}</td>
+        <td>${item.admNo}</td>
+        <td>${item.name}</td>
+        <td>${item.preference}</td>
+        <td>${item.date}</td>
+        <td>
+          <button onclick="deleteAttendance('${item._id}')">❌</button>
+        </td>
+      </tr>
+    `;
+  });
 }
 
-/* ===== DELETE ===== */
+/* DELETE */
 async function deleteAttendance(id) {
-  if (!confirm("Delete this record?")) return;
+  if (!confirm("Are you sure?")) return;
 
-  try {
-    const res = await fetch(`/delete-attendance/${id}`, { method: "DELETE" });
-    const data = await res.json();
+  await fetch(`/delete-attendance/${id}`, {
+    method: "DELETE"
+  });
 
-    showResult(data.message, data.message.includes("✅") ? "success" : "error");
-    loadAttendance();
-  } catch (err) {
-    showResult("Error deleting ❌", "error");
-  }
+  showResult("Deleted ✅", true);
+  loadAttendance();
 }
+
 </script>
 
 </body>
